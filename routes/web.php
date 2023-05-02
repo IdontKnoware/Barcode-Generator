@@ -19,6 +19,7 @@ Route::get('/', function () {
 });
 
 Route::get('/ean13/{times}', 'App\Http\Controllers\BarcodeController@makeEan13Barcodes');
-Route::post('/barcodes/download', [BarcodeController::class, 'downloadEan13Barcodes'])->name('barcodes-download');
+Route::post('/barcodes/download', [BarcodeController::class, 'downloadEan13BarcodesCsv'])->name('barcodes-csv');
+Route::post('/barcodes/download-as-zip', [BarcodeController::class, 'downloadHtml2CanvasGeneratedImagesAsZip'])->name('barcode-images-zip');
 
 

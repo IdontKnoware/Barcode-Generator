@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 use Picqer\Barcode\BarcodeGeneratorPNG;
+use ZipArchive;
 
 class BarcodeController extends Controller
 {
@@ -22,13 +21,12 @@ class BarcodeController extends Controller
             $barcodes[$i]['img'] = $barcodeGenerator->getBarcode($randomizeEan13, $barcodeGenerator::TYPE_EAN_13);
         }
 
-
         return view('barcodes', [
             'barcodes' => $barcodes
         ]);
     }
 
-    public function downloadEan13Barcodes(Request $request)
+    public function downloadEan13BarcodesCsv(Request $request)
     {
         // Recuperar los barcodes del formulario
         $numeros = json_decode($request->input('numeros'), true);
@@ -53,5 +51,51 @@ class BarcodeController extends Controller
         return response()->streamDownload(function() use ($csv) {
             echo $csv;
         }, 'barcodes.csv', $headers);
+    }
+
+    public function downloadBarcodes(Request $request)
+    {
+        $numeros = $request->input('numeros');
+        $barcodes = [];
+        foreach ($numeros as $numero) {
+            $barcode = $this->generateBarcode($numero);
+            $barcodes[] = $barcode;
+        }
+        $zipName = 'barcodes.zip';
+        $zip = new ZipArchive;
+        if ($zip->open($zipName, ZipArchive::CREATE) === TRUE) {
+            foreach ($barcodes as $barcode) {
+                $zip->addFromString($barcode['label'] . '.jpg', base64_decode($barcode['img']));
+            }
+            $zip->close();
+            return response()->download($zipName)->deleteFileAfterSend(true);
+        } else {
+            return response('Error: no se pudo crear el archivo zip', 500);
+        }
+    }
+
+    public function downloadHtml2CanvasGeneratedImagesAsZip(Request $request)
+    {
+        dd($request);
+        // Obtener los números y las imágenes del formulario
+        $numeros = json_decode($request->input('numeros'));
+        $images = $request->input('images');
+
+        // Crear un nuevo archivo ZIP
+        $zip = new \ZipArchive();
+        $zipname = 'barcodes.zip';
+        $zip->open($zipname, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        // Agregar cada imagen al archivo ZIP
+        foreach ($images as $index => $imageData) {
+            dd($imageData);
+            $filename = 'barcode-' . $numeros[$index] . '.jpg';
+            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imageData));
+            $zip->addFromString($filename, $imageData);
+        }
+
+        // Cerrar el archivo ZIP y descargar
+        $zip->close();
+        return response()->download($zipname);
     }
 }
